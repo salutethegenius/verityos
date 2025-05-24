@@ -1,0 +1,45 @@
+# Breeze Agent SOPs (Standard Operating Procedures)
+
+scrape_bahamaspress:
+  description: Scrape the latest articles from Bahamas Press website.
+  steps:
+    - Launch Playwright browser
+    - Navigate to https://www.bahamaspress.com
+    - Locate and iterate through article links on main/news pages
+    - Click each link, extract article body, title, date
+    - Save to Markdown and JSON in /data/news/bahamaspress
+    - Log status and count of saved articles
+
+scrape_bahamasgov:
+  description: Scrape official press releases from Bahamas Government portal.
+  steps:
+    - Launch Playwright browser
+    - Navigate to https://www.bahamas.gov.bs/wps/portal/public/gov/government/news
+    - Parse news table rows for date, title, and article URL
+    - Click through to each article
+    - Extract full text, title, date, and source
+    - Save as Markdown and JSON to /data/news/bahamasgov
+    - Log outcomes and skip short entries
+
+paginate_bahamaspress:
+  description: Iterate through multiple pages of Bahamas Press archives.
+  steps:
+    - Start from specified page (e.g., 11)
+    - Visit each archive page up to limit (e.g., 500)
+    - Repeat article scrape per page
+    - Sleep between pages to avoid IP block
+    - Handle failures gracefully
+
+manual_mode:
+  description: Manually invoke .breeze [press|gov] command from VerityOS
+  steps:
+    - Type `.breeze press` or `.breeze gov` in terminal
+    - Follow log output and verify markdown saves
+    - Inspect screenshots or debug output if needed
+
+data_backup:
+  description: Optional backup of extracted articles
+  steps:
+    - Zip markdown + json folders
+    - Sync to cloud storage or external volume
+    - Validate file counts and timestamps

@@ -1,0 +1,16 @@
+.env
+__pycache__/
+*.log
+*.pyc
+*.sqlite3
+*.pkl
+logs/
+models/
+production_logs/
+secrets/
+fine_tuning/
+data/
+messages/
+tasks/
+templates/
+memory_system/

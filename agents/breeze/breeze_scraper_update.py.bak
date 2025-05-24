@@ -1,0 +1,507 @@
+from playwright.sync_api import sync_playwright
+import os
+from datetime import datetime
+import json
+import re
+import argparse
+import hashlib
+from pathlib import Path
+from urllib.parse import urljoin
+
+# Define the base directory for data output
+BASE_DIR = "/home/ubuntu/verityos/data/news"
+LOG_DIR = "/home/ubuntu/verityos/logs/breeze"
+METADATA_DIR = "metadata"
+
+# Site options
+SITES = {
+    "1": ("Bahamas Press", "https://www.bahamaspress.com", "bahamaspress"),
+    "2": ("Bahamas Gov News", "https://www.bahamas.gov.bs/wps/portal/public/gov/government/news", "bahamasgov"),
+    "3": ("Tribune 242", "https://tribune242.com/news", "tribune242"),
+    "4": ("Nassau Guardian", "https://www.thenassauguardian.com/news", "nassauguardian")
+}
+
+# Prompt user
+print("🌬️  Breeze is online and ready to collect national tone data.")
+print("Select a website to scrape:\n")
+print("1. Bahamas Press        (https://www.bahamaspress.com)")
+print("2. Bahamas Gov News     (https://www.bahamas.gov.bs/wps/portal/public/gov/government/news)")
+print("3. Tribune 242          (https://tribune242.com/news)")
+print("4. Nassau Guardian       (https://www.thenassauguardian.com/news)")
+
+choice = input("> ").strip()
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--start-page", type=int, default=1)
+parser.add_argument("--max-pages", type=int, default=5)
+args, _ = parser.parse_known_args()
+
+if choice in SITES:
+    site_name, base_url, slug = SITES[choice]
+else:
+    print("Invalid choice. Exiting.")
+    exit()
+
+print(f"\n🛰️  Starting scrape for: {site_name} ({base_url})\n")
+
+# Create folders
+output_path = os.path.join(BASE_DIR, slug)
+metadata_path = os.path.join(output_path, METADATA_DIR)
+os.makedirs(output_path, exist_ok=True)
+os.makedirs(metadata_path, exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
+
+def slugify(text):
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+def extract_bahamaspress_articles():
+    articles = []
+    with sync_playwright() as p:
+            print("\nDebug: Taking screenshot and checking page content...")
+            page = browser.new_page()
+            page.goto(base_url)
+            page.screenshot(path="debug_nassau.png")
+            print("Debug: Page HTML:", page.content()[:500])
+        browser = p.chromium.launch(headless=True)
+            page.screenshot(path="debug_nassau.png")
+        page = browser.new_page()
+        current_year = datetime.now().year
+        valid_years = [str(y) for y in range(current_year - 4, current_year + 1)]
+        seen = set()
+
+        for page_num in range(args.start_page, args.start_page + args.max_pages):
+            paged_url = f"{base_url}/page/{page_num}/"
+            print(f"\n📄 Fetching page {page_num}: {paged_url}")
+            page.goto(paged_url)
+            page.wait_for_timeout(5000)
+
+            links = page.locator("div.td-module-thumb > a")
+            count = links.count()
+            print(f"🔍 Found {count} article links on page {page_num}")
+
+            for i in range(count):
+                a_tag = links.nth(i)
+                title = a_tag.get_attribute("title") or "Untitled"
+                href = a_tag.get_attribute("href")
+                if not href:
+                    continue
+                link = href if href.startswith("http") else urljoin(base_url, href)
+                article_id = hashlib.md5(link.encode()).hexdigest()
+                if article_id in seen:
+                    continue
+                # Skip low-signal/multimedia articles by title
+                if any(kw in title.lower() for kw in ["photo gallery", "video", "crab-walking", "advertising", "funny", "promo", "dressup"]):
+                    print(f"⏭️ Skipping multimedia/low-signal article: {title}")
+                    continue
+                seen.add(article_id)
+
+                article_page = browser.new_page()
+                try:
+                    try:
+                        article_page.goto(link, timeout=15000)
+                    except Exception as e:
+                        print(f"⏳ Timeout or navigation error for: {link} — {e}")
+                        article_page.close()
+                        continue
+
+                    article_page.wait_for_selector("div.td-post-content", timeout=5000)
+                    content = article_page.locator("div.td-post-content").inner_text().strip()
+                except:
+                    print(f"❌ Failed to load: {link}")
+                    article_page.close()
+                    continue
+                article_page.close()
+
+                if len(content.split()) < 100:
+                    print(f"📄 Skipping short article: {title}")
+                    continue
+
+                pub_match = re.search(r"(January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, (\d{4})", content)
+                pub_year = pub_match.group(2) if pub_match else str(current_year)
+                if pub_year not in valid_years:
+                    print(f"⏭️ Skipping article from {pub_year}")
+                    continue
+
+                pub_date = datetime.now().strftime("%Y-%m-%d")
+                author = "Unknown"
+                category = "Local News"
+                summary = content[:300].split(".")[0] + "..."
+                tone = "neutral"
+                slug_title = slugify(" ".join(title.split()[:5]))
+                filename = f"{pub_date}-{slug_title}"
+
+                year_folder = os.path.join(output_path, pub_year)
+                os.makedirs(year_folder, exist_ok=True)
+
+                md_path = os.path.join(year_folder, f"{filename}.md")
+                with open(md_path, "w", encoding="utf-8") as f:
+                    f.write(f"# {title}\n")
+                    f.write(f"**Date:** {pub_date}  \n")
+                    f.write(f"**Author:** {author}  \n")
+                    f.write(f"**Source:** {site_name}  \n")
+                    f.write(f"**Category:** {category}  \n")
+                    f.write(f"**Tags:** Bahamas, local, news, {pub_year}  \n")
+                    f.write("\n---\n\n## Summary\n")
+                    f.write(f"{summary}\n\n**Tone:** {tone}\n\n---\n\n## Article\n")
+                    f.write(f"{content}\n\n---\n**URL:** {link}")
+
+                meta_path = os.path.join(metadata_path, f"{filename}.json")
+                with open(meta_path, "w", encoding="utf-8") as j:
+                    json.dump({
+                        "title": title,
+                        "date": pub_date,
+                        "author": author,
+                        "category": category,
+                        "tags": ["Bahamas", "news", pub_year],
+                        "summary": summary,
+                        "tone": tone,
+                        "url": link,
+                        "word_count": len(content.split()),
+                        "source": site_name
+                    }, j, indent=2)
+
+                articles.append(title)
+                print(f"✅ Saved: {filename}.md and .json")
+
+        browser.close()
+    return articles
+
+
+# Tribune 242 scraper
+def extract_tribune242_articles():
+    articles = []
+    with sync_playwright() as p:
+            print("\nDebug: Taking screenshot and checking page content...")
+            page = browser.new_page()
+            page.goto(base_url)
+            page.screenshot(path="debug_nassau.png")
+            print("Debug: Page HTML:", page.content()[:500])
+        browser = p.chromium.launch(headless=True)
+            page.screenshot(path="debug_nassau.png")
+        page = browser.new_page()
+        current_year = datetime.now().year
+        valid_years = [str(y) for y in range(current_year - 4, current_year + 1)]
+        seen = set()
+
+        for page_num in range(args.start_page, args.start_page + args.max_pages):
+            paged_url = f"{base_url}/?page={page_num}"
+            print(f"\n📄 Fetching page {page_num}: {paged_url}")
+            page.goto(paged_url)
+            page.wait_for_timeout(4000)
+
+            links = page.locator("div.item h4 a")
+            count = links.count()
+            print(f"🔍 Found {count} article links on page {page_num}")
+
+            for i in range(count):
+                a_tag = links.nth(i)
+                title = a_tag.inner_text()
+                href = a_tag.get_attribute("href")
+                if not href or not href.startswith("/news/"):
+                    continue
+
+                link = urljoin(base_url, href)
+                article_id = hashlib.md5(link.encode()).hexdigest()
+                if article_id in seen:
+                    continue
+                seen.add(article_id)
+
+                article_page = browser.new_page()
+                try:
+                    article_page.goto(link, timeout=15000)
+                    article_page.wait_for_selector("div#target-story_body_template", timeout=5000)
+                    content_blocks = article_page.locator("div#target-story_body_template > p").all_inner_texts()
+                    content = "\n".join(content_blocks).strip()
+                    try:
+                        author = article_page.locator("p:has-text('By ')").first.inner_text().replace("By ", "").strip()
+                    except:
+                        author = "Unknown"
+                except:
+                    print(f"❌ Failed to load or extract: {link}")
+                    article_page.close()
+                    continue
+                article_page.close()
+
+                if len(content.split()) < 100:
+                    print(f"📄 Skipping short article: {title}")
+                    continue
+
+                pub_date = datetime.now().strftime("%Y-%m-%d")
+                category = "Tribune News"
+                summary = content[:300].split(".")[0] + "..."
+                tone = "neutral"
+                slug_title = slugify(" ".join(title.split()[:5]))
+                filename = f"{pub_date}-{slug_title}"
+
+                year_folder = os.path.join(output_path, pub_date[:4])
+                os.makedirs(year_folder, exist_ok=True)
+
+                md_path = os.path.join(year_folder, f"{filename}.md")
+                with open(md_path, "w", encoding="utf-8") as f:
+                    f.write(f"# {title}\n")
+                    f.write(f"**Date:** {pub_date}  \n")
+                    f.write(f"**Author:** {author}  \n")
+                    f.write(f"**Source:** {site_name}  \n")
+                    f.write(f"**Category:** {category}  \n")
+                    f.write(f"**Tags:** Bahamas, Tribune, news, {pub_date[:4]}  \n")
+                    f.write("\n---\n\n## Summary\n")
+                    f.write(f"{summary}\n\n**Tone:** {tone}\n\n---\n\n## Article\n")
+                    f.write(f"{content}\n\n---\n**URL:** {link}")
+
+                meta_path = os.path.join(metadata_path, f"{filename}.json")
+                with open(meta_path, "w", encoding="utf-8") as j:
+                    json.dump({
+                        "title": title,
+                        "date": pub_date,
+                        "author": author,
+                        "category": category,
+                        "tags": ["Bahamas", "Tribune", "news", pub_date[:4]],
+                        "summary": summary,
+                        "tone": tone,
+                        "url": link,
+                        "word_count": len(content.split()),
+                        "source": site_name
+                    }, j, indent=2)
+
+                articles.append(title)
+                print(f"✅ Saved: {filename}.md and .json")
+        browser.close()
+    return articles
+
+
+# Dispatcher
+if slug == "bahamaspress" or "bahamaspress.com" in base_url:
+    titles = extract_bahamaspress_articles()
+    with open(os.path.join(LOG_DIR, "run.log"), "a") as log:
+        log.write(f"{datetime.now()}: Scraped {len(titles)} articles from {site_name}\n")
+    print(f"\n✅ Completed. {len(titles)} articles saved.\n")
+elif slug == "bahamasgov" or "bahamas.gov.bs" in base_url:
+    def extract_bahamasgov_articles():
+        articles = []
+        print("🛰️  Using Playwright to scrape Bahamas Gov News with click-through logic")
+
+        with sync_playwright() as p:
+            print("\nDebug: Taking screenshot and checking page content...")
+            page = browser.new_page()
+            page.goto(base_url)
+            page.screenshot(path="debug_nassau.png")
+            print("Debug: Page HTML:", page.content()[:500])
+            browser = p.chromium.launch(headless=True)
+            page.screenshot(path="debug_nassau.png")
+            page = browser.new_page()
+            page.goto(base_url)
+            page.wait_for_timeout(5000)
+            page.screenshot(path="breeze_debug.png")
+            print("📸 Screenshot saved as breeze_debug.png for inspection")
+
+            rows = page.locator("table tr")
+            count = rows.count()
+            print(f"🔍 Found {count} table rows")
+
+            for i in range(min(10, count - 1)):  # Skip header, scrape up to 10 articles
+                row = rows.nth(i + 1)  # skip header row
+                print(f"\n🔎 Row {i+1} HTML:\n{row.inner_html()[:500]}")
+                try:
+                    print(f"🧪 Extracting data from row {i+1}")
+                except Exception as e:
+                    print(f"⚠️ Could not read row {i+1}: {e}")
+                    continue
+
+                cells = row.locator("td")
+                if cells.count() < 3:
+                    continue
+
+                date_text = cells.nth(0).inner_text().strip()
+                title = cells.nth(1).inner_text().strip()
+                source = cells.nth(2).inner_text().strip()
+
+                a_tag = cells.nth(1).locator("a")
+                if a_tag.count() == 0:
+                    print(f"⚠️ No link tag found for article: '{title}' — skipping.")
+                    continue
+
+                article_link = a_tag.get_attribute("href")
+                if not article_link:
+                    print(f"⚠️ No href attribute found for: '{title}' — skipping.")
+                    continue
+
+                if not article_link.startswith("http"):
+                    article_link = "https://www.bahamas.gov.bs" + article_link
+
+                print(f"🔗 Opening article link: {article_link}")
+
+                with browser.new_page() as article_page:
+                    try:
+                        article_page.goto(article_link)
+                        article_page.wait_for_load_state("networkidle")
+                        article_page.screenshot(path="breeze_article_debug.png")
+
+                        content_element = article_page.locator("body")
+                        content = content_element.inner_text().strip()
+                    except Exception as e:
+                        print(f"❌ Error loading article '{title}' from {article_link}: {e}")
+                        continue
+
+                if len(content.split()) < 100:
+                    print(f"📄 Skipping short article ({len(content.split())} words): {title}")
+                    continue
+
+                pub_date = datetime.now().strftime("%Y-%m-%d")
+                category = "Government News"
+                summary = content[:300].split(".")[0] + "..."
+                tone = "neutral"
+                slug_title = slugify(" ".join(title.split()[:5]))
+                filename = f"{pub_date}-{slug_title}"
+
+                md_path = os.path.join(output_path, f"{filename}.md")
+                with open(md_path, "w", encoding="utf-8") as f:
+                    f.write(f"# {title}\n")
+                    f.write(f"**Date:** {pub_date}  \n")
+                    f.write(f"**Author:** {source}  \n")
+                    f.write(f"**Source:** {site_name}  \n")
+                    f.write(f"**Category:** {category}  \n")
+                    f.write(f"**Tags:** Bahamas, government, news  \n")
+                    f.write("\n---\n\n## Summary\n")
+                    f.write(f"{summary}\n\n**Tone:** {tone}\n\n---\n\n## Article\n")
+                    f.write(f"{content}\n\n---\n**URL:** (clicked link)")
+
+                meta_path = os.path.join(metadata_path, f"{filename}.json")
+                with open(meta_path, "w", encoding="utf-8") as j:
+                    json.dump({
+                        "title": title,
+                        "date": pub_date,
+                        "author": source,
+                        "category": category,
+                        "tags": ["Bahamas", "government", "news"],
+                        "summary": summary,
+                        "tone": tone,
+                        "url": "(clicked link)",
+                        "word_count": len(content.split()),
+                        "source": site_name
+                    }, j, indent=2)
+
+                articles.append(title)
+                print(f"✅ Saved: {filename}.md and .json")
+
+            print(f"\n📦 Total articles processed from Bahamas Gov: {len(articles)}")
+            browser.close()
+        return articles
+
+    titles = extract_bahamasgov_articles()
+    with open(os.path.join(LOG_DIR, "run.log"), "a") as log:
+        log.write(f"{datetime.now()}: Scraped {len(titles)} articles from {site_name}\n")
+    print(f"\n✅ Completed. {len(titles)} articles saved.\n")
+elif slug == "tribune242":
+    titles = extract_tribune242_articles()
+    with open(os.path.join(LOG_DIR, "run.log"), "a") as log:
+        log.write(f"{datetime.now()}: Scraped {len(titles)} articles from {site_name}\n")
+    print(f"\n✅ Completed. {len(titles)} articles saved.\n")
+elif slug == "nassauguardian":
+    def extract_nassauguardian_articles():
+        articles = []
+        with sync_playwright() as p:
+            print("\nDebug: Taking screenshot and checking page content...")
+            page = browser.new_page()
+            page.goto(base_url)
+            page.screenshot(path="debug_nassau.png")
+            print("Debug: Page HTML:", page.content()[:500])
+            browser = p.chromium.launch(headless=True)
+            page.screenshot(path="debug_nassau.png")
+            page = browser.new_page(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36")
+            current_year = datetime.now().year
+            valid_years = [str(y) for y in range(current_year - 4, current_year + 1)]
+            seen = set()
+
+            page.goto(base_url, timeout=180000, wait_until="domcontentloaded")
+            page.wait_for_selector("article.card", timeout=60000)
+            # page.wait_for_load_state("domcontentloaded")
+
+            for _ in range(args.max_pages):
+                load_more = page.locator("button.tnt-load-more")
+                if load_more.is_visible():
+                    load_more.click()
+                    page.wait_for_selector("article.card", timeout=10000)
+
+            articles_list = page.locator("article.card a.headline")
+            count = articles_list.count()
+            print(f"🔍 Found {count} article links")
+
+            for i in range(count):
+                a_tag = articles_list.nth(i)
+                title = a_tag.inner_text()
+                href = a_tag.get_attribute("href")
+                if not href or not href.startswith("/news/"):
+                    continue
+
+                link = urljoin(base_url, href)
+                article_id = hashlib.md5(link.encode()).hexdigest()
+                if article_id in seen:
+                    continue
+                seen.add(article_id)
+
+                article_page = browser.new_page()
+                try:
+                    article_page.goto(link, timeout=60000)
+                    article_page.wait_for_selector("div#tncms-region-article_body_", timeout=30000)
+                    content_blocks = article_page.locator("div#tncms-region-article_body_ > p").all_inner_texts()
+                    content = "\n".join(content_blocks).strip()
+                    try:
+                        author = article_page.locator("p:has-text('By ')").first.inner_text().replace("By ", "").strip()
+                    except:
+                        author = "Unknown"
+                except:
+                    print(f"❌ Failed to load or extract: {link}")
+                    article_page.close()
+                    continue
+                article_page.close()
+
+                if len(content.split()) < 100:
+                    print(f"📄 Skipping short article: {title}")
+                    continue
+
+                pub_date = datetime.now().strftime("%Y-%m-%d")
+                category = "Nassau Guardian News"
+                summary = content[:300].split(".")[0] + "..."
+                tone = "neutral"
+                slug_title = slugify(" ".join(title.split()[:5]))
+                filename = f"{pub_date}-{slug_title}"
+
+                year_folder = os.path.join(output_path, pub_date[:4])
+                os.makedirs(year_folder, exist_ok=True)
+
+                md_path = os.path.join(year_folder, f"{filename}.md")
+                with open(md_path, "w", encoding="utf-8") as f:
+                    f.write(f"# {title}\n")
+                    f.write(f"**Date:** {pub_date}  \n")
+                    f.write(f"**Author:** {author}  \n")
+                    f.write(f"**Source:** {site_name}  \n")
+                    f.write(f"**Category:** {category}  \n")
+                    f.write(f"**Tags:** Bahamas, Guardian, news, {pub_date[:4]}  \n")
+                    f.write("\n---\n\n## Summary\n")
+                    f.write(f"{summary}\n\n**Tone:** {tone}\n\n---\n\n## Article\n")
+                    f.write(f"{content}\n\n---\n**URL:** {link}")
+
+                meta_path = os.path.join(metadata_path, f"{filename}.json")
+                with open(meta_path, "w", encoding="utf-8") as j:
+                    json.dump({
+                        "title": title,
+                        "date": pub_date,
+                        "author": author,
+                        "category": category,
+                        "tags": ["Bahamas", "Guardian", "news", pub_date[:4]],
+                        "summary": summary,
+                        "tone": tone,
+                        "url": link,
+                        "word_count": len(content.split()),
+                        "source": site_name
+                    }, j, indent=2)
+
+                articles.append(title)
+                print(f"✅ Saved: {filename}.md and .json")
+            browser.close()
+        return articles
+
+    titles = extract_nassauguardian_articles()
+    with open(os.path.join(LOG_DIR, "run.log"), "a") as log:
+        log.write(f"{datetime.now()}: Scraped {len(titles)} articles from {site_name}\n")
+    print(f"\n✅ Completed. {len(titles)} articles saved.\n")

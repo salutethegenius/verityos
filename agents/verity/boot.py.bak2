@@ -1,0 +1,155 @@
+# ~/verityos/agents/verity/boot.py - Verity v1.1 Upgrade
+
+import yaml
+import subprocess
+import os
+import time
+from pathlib import Path
+import psutil
+import getpass
+from cryptography.fernet import Fernet, InvalidToken
+
+# === Load Configuration ===
+def load_config():
+    with open("config.yaml", "r") as f:
+        return yaml.safe_load(f)
+
+# === Load Memory ===
+def load_memory(memory_path):
+    mem_file = Path(memory_path) / "memory.txt"
+    return mem_file.read_text() if mem_file.exists() else ""
+
+# === Initialize Session Log ===
+def init_log(log_path):
+    log_file = Path(log_path) / f"session_{int(time.time())}.log"
+    log_file.touch()
+    return log_file
+
+# === Write to Log ===
+def write_log(log_file, entry):
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    with open(log_file, "a") as f:
+        f.write(f"[{timestamp}] {entry}\n")
+
+# === Agent Report ===
+def get_agent_report():
+    agent_root = Path("/home/ubuntu/verityos/agents")
+    report = []
+    for agent_dir in agent_root.glob("*"):
+        config_path = agent_dir / "config.yaml"
+        if config_path.exists():
+            with open(config_path, "r") as f:
+                cfg = yaml.safe_load(f)
+                report.append(f"- {cfg.get('name', agent_dir.name)} ({cfg.get('role', 'N/A')}) | Version: {cfg.get('version', 'N/A')} | Mode: {cfg.get('mode', 'N/A')}")
+    return "\n".join(report) or "No agents found."
+
+# === System Report ===
+def get_system_report():
+    uptime = time.time() - psutil.boot_time()
+    disk = psutil.disk_usage('/')
+    mem = psutil.virtual_memory()
+    return f"System Uptime: {int(uptime // 60)} mins\nDisk Usage: {disk.percent}%\nRAM Usage: {mem.percent}%"
+
+# === Vault Status ===
+def vault_status():
+    vault_path = Path("/home/ubuntu/verityos/vault")
+    if not vault_path.exists():
+        return "Vault folder not found."
+    elif any(vault_path.iterdir()):
+        return "Vault detected: Contents present (encrypted check pending)."
+    else:
+        return "Vault is present but empty."
+
+# === Vault Unlock ===
+def vault_unlock():
+    vault_file = Path("/home/ubuntu/verityos/vault/data.blob")
+    if not vault_file.exists():
+        return "No vault blob found."
+    passphrase = getpass.getpass("Enter vault decryption key: ")
+    try:
+        fernet = Fernet(passphrase.encode())
+        decrypted = fernet.decrypt(vault_file.read_bytes())
+        return f"Vault contents loaded:\n{decrypted.decode()}"
+    except (ValueError, InvalidToken):
+        return "Decryption failed. Invalid key or corrupted blob."
+
+# === Summarize Memory ===
+def summarize_memory(memory_path):
+    mem_file = Path(memory_path) / "memory.txt"
+    if not mem_file.exists():
+        return "No memory to summarize."
+    content = mem_file.read_text()
+    summary = content[:500] + "..." if len(content) > 500 else content
+    summary_file = Path(memory_path) / f"summary_{int(time.time())}.txt"
+    with open(summary_file, "w") as f:
+        f.write(summary)
+    return f"Summary saved to {summary_file.name}"
+
+# === Append Note to Memory ===
+def add_note(memory_path, note):
+    mem_file = Path(memory_path) / "memory.txt"
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    with open(mem_file, "a") as f:
+        f.write(f"[{timestamp}] NOTE: {note}\n")
+    return "Note saved to memory."
+
+# === Self Test ===
+def selftest(config):
+    checks = []
+    checks.append(f"Model: {config['model']} available")
+    if not Path(config["memory_path"]).exists():
+        checks.append("Memory path missing.")
+    if not Path(config["log_path"]).exists():
+        checks.append("Log path missing.")
+    if not Path("config.yaml").exists():
+        checks.append("Config file missing.")
+    try:
+        subprocess.run(["ollama", "list"], check=True, capture_output=True)
+    except:
+        checks.append("Ollama model engine not responding.")
+    return "\n".join(checks or ["All systems nominal."])
+
+# === Main Run ===
+def run_verity():
+    config = load_config()
+    memory = load_memory(config["memory_path"])
+    persona = config.get("persona", "")
+    log_file = init_log(config["log_path"])
+
+    # Boot greeting
+    greeting = f"{persona}\n\nPrevious memory:\n{memory}\n\nGreet the Boss and prepare for briefing."
+    subprocess.run(["ollama", "run", config["model"]], input=greeting.encode())
+    write_log(log_file, "Booted Verity and greeted Boss.")
+
+    # Command loop
+    while True:
+        cmd = input("\n[VerityOS] Command > ").strip()
+        write_log(log_file, f"Command Entered: {cmd}")
+
+        if cmd in ["exit", ".exit"]:
+            print("Exiting Verity session.")
+            write_log(log_file, "Session terminated.")
+            break
+        elif cmd in [".status"]:
+            result = get_system_report()
+        elif cmd in [".agents"]:
+            result = get_agent_report()
+        elif cmd in [".vault"]:
+            result = vault_status()
+        elif cmd in [".summarize"]:
+            result = summarize_memory(config["memory_path"])
+        elif cmd.startswith(".note"):
+        note = cmd[len(".note "):].strip()
+            result = add_note(config["memory_path"], note)
+        elif cmd in [".vault unlock"]:
+            result = vault_unlock()
+        elif cmd in [".selftest"]:
+            result = selftest(config)
+        else:
+            result = "Unknown command. Try: .status, .agents, .vault, .summarize, .note [text], .vault unlock, .selftest, .exit"
+
+        print(result)
+        write_log(log_file, f"Response: {result}")
+
+if __name__ == "__main__":
+    run_verity()
