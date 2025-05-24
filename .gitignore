@@ -1,16 +1,24 @@
+# 🔒 Sensitive or unnecessary files
 .env
 __pycache__/
 *.log
 *.pyc
 *.sqlite3
 *.pkl
+
+# 🔕 Runtime and training output
 logs/
 models/
 production_logs/
 secrets/
+
+# 🧠 Exclude fine-tuning system
 fine_tuning/
+
+# 📂 Optional: exclude any private datasets or future agents
 data/
-messages/
-tasks/
-templates/
 memory_system/
+
+# 🛠 Optional task queues and internal templates (can include if needed)
+# tasks/
+# templates/

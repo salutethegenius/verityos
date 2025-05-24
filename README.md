@@ -63,12 +63,44 @@ VerityOS can run on:
 ## 🚀 How to Use
 
 1. Clone the repo  
-2. Configure `.env` and `system.yaml`  
-3. Launch with:
-   ```bash
-   python3 agents/verity/boot.py
+2. Create your environment file (`.env`)  
+3. Set up your virtual environment  
+4. Install dependencies  
+5. Run VerityOS  
+6. Inside the system, run `.help` to view available commands  
 
-Run .help inside to see available commands
+---
+
+## 🧪 Environment Setup (`.env` Required)
+
+Before running VerityOS, you must create a `.env` file in the project root:
+
+```bash
+touch .env
+```
+
+Paste the following into `.env`, replacing with your actual values:
+
+```env
+OPENAI_API_KEY=sk-XXXXXXXXXXXXXXXXXXXXXXXXXXXX
+OPENAI_MODEL=gpt-4
+VERITY_MODEL=gpt-4
+VERITY_PROVIDER=OpenAI
+VERITY_VAULT_KEY=yourCustomEncryptionKey123!
+```
+
+> 🔒 **Never share your `.env` file.** It's excluded from Git for your protection.
+
+---
+
+## 🧰 Launch VerityOS
+
+```bash
+python3 -m venv verityenv
+source verityenv/bin/activate
+pip install -r requirements.txt
+python3 agents/verity/boot.py
+```
 
 ⸻
 

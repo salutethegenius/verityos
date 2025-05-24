@@ -1,0 +1,25 @@
+
+
+
+# {{ agent_name }}.py
+
+import sys
+sys.path.append('/home/ubuntu/verityos')
+
+from utils.logger import log_audit
+
+class {{ agent_class }}:
+    def __init__(self):
+        self.name = "{{ agent_name }}"
+        self.version = "{{ version }}"
+        self.role = "{{ role }}"
+        self.memory_path = "{{ memory_path }}"
+        self.log_path = "{{ log_path }}"
+
+    def startup(self):
+        log_audit("{{ agent_name }}", "Boot", "Agent is now active.")
+        print(f"[✔] {{ agent_name }} v{{ version }} started.")
+
+if __name__ == "__main__":
+    agent = {{ agent_class }}()
+    agent.startup()

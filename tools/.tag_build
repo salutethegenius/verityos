@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# VerityOS Auto Tag Script
+# Usage: ./tag_build.sh "Tag name" "Optional message"
+
+TAG=$1
+MESSAGE=$2
+
+if [ -z "$TAG" ]; then
+  echo "❌ No tag name provided. Usage: ./tag_build.sh v1.0-K.Moncur 'Stable release'"
+  exit 1
+fi
+
+git tag -a "$TAG" -m "${MESSAGE:-Auto-tagged commit by K.Moncur}"
+git push origin "$TAG"
+
+echo "✅ Tagged commit as $TAG"
