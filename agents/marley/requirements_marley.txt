@@ -1,0 +1,13 @@
+# OpenAI integration
+openai>=1.0.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# YAML config
+PyYAML>=5.0.0
+
+# Google Calendar API
+google-api-python-client>=2.0.0
+google-auth>=2.0.0
+google-auth-oauthlib>=1.0.0
