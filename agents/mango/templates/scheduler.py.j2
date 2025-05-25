@@ -1,0 +1,15 @@
+# scheduler.py
+import schedule
+import time
+from boot import run
+
+def job():
+    print("Running scheduled job...")
+    run()
+
+schedule.every().monday.at("09:00").do(job)
+
+if __name__ == "__main__":
+    while True:
+        schedule.run_pending()
+        time.sleep(60)

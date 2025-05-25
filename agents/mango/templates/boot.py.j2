@@ -1,0 +1,24 @@
+# boot.py for {{ agent_name }}
+
+import yaml
+import os
+
+def load_config():
+    with open("config.yaml", "r") as f:
+        return yaml.safe_load(f)
+
+def run():
+    config = load_config()
+    dry_run = config.get("dry_run", False)
+
+    print("Hello from {{ agent_name }}!")
+    print("This agent's mission: {{ description }}")
+    print(f"Dry-run mode: {'ON' if dry_run else 'OFF'}")
+
+    if dry_run:
+        print("[DRY RUN] This is where your agent would take action.")
+    else:
+        print("[LIVE MODE] This is where your agent takes real action.")
+
+if __name__ == "__main__":
+    run()

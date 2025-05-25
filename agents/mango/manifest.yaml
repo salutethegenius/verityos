@@ -1,0 +1,5 @@
+description: mango is a Assistant agent in VerityOS.
+model: open_llama_3b
+name: mango
+role: Assistant
+version: '1.0'

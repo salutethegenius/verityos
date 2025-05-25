@@ -1,0 +1,57 @@
+from pathlib import Path
+import json
+from datetime import datetime
+import typer
+
+@app.command()
+def importagent(from_zip: str = typer.Option(..., help="Path to agent .zip bundle")):
+    """Import a zipped agent into VerityOS and register it."""
+    import zipfile
+    import shutil
+
+    bundle_path = Path(from_zip).resolve()
+    if not bundle_path.exists():
+        print(f"[red]Bundle not found: {bundle_path}[/red]")
+        raise typer.Exit()
+
+    with zipfile.ZipFile(bundle_path, 'r') as zip_ref:
+        names = zip_ref.namelist()
+        root_dir = names[0].split('/')[0]
+        extract_path = OUTPUT_BASE / root_dir
+
+        if extract_path.exists():
+            print(f"[red]Agent folder already exists: {extract_path}[/red]")
+            raise typer.Exit()
+
+        zip_ref.extractall(OUTPUT_BASE)
+        print(f"[green]✅ Extracted to: {extract_path}[/green]")
+
+    metadata_path = extract_path / "metadata.json"
+    if metadata_path.exists():
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+    else:
+        metadata = {
+            "agent_name": root_dir,
+            "creator": "Unknown",
+            "version": "0.0.1"
+        }
+
+    registry_path = Path("/home/ubuntu/verityos/registry/agents.json")
+    registry_path.parent.mkdir(parents=True, exist_ok=True)
+    if registry_path.exists():
+        with open(registry_path, "r") as f:
+            agents = json.load(f)
+    else:
+        agents = []
+
+    metadata["path"] = str(extract_path)
+    metadata["installed_at"] = datetime.utcnow().isoformat() + "Z"
+    agents.append(metadata)
+
+    with open(registry_path, "w") as f:
+        json.dump(agents, f, indent=2)
+
+    print(f"[green]📦 Agent '{metadata['agent_name']}' registered.[/green]")
+
+if __name__ == "__main__":

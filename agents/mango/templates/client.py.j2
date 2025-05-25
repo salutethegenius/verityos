@@ -1,0 +1,18 @@
+# medium_client.py
+
+import requests
+
+def post_to_medium(api_key, title, content):
+    url = "https://api.medium.com/v1/users/me/posts"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "title": title,
+        "contentFormat": "html",
+        "content": content,
+        "publishStatus": "public"
+    }
+    response = requests.post(url, headers=headers, json=payload)
+    print("Medium response:", response.status_code, response.text)
