@@ -11,3 +11,11 @@ role: |
   She maintains order, clarity, and reporting accuracy.
 adapter_path: /home/ubuntu/verityos/fine_tuning/minty/adapters
 version: '1.2'
+
+stripe_api_key: sk_live_RzcTwhy64kemHnTyjMoTfD7Y
+
+category_map:
+  charge: Revenue
+  refund: Refunds
+  balance_transaction_fee: Fees
+  # add product-specific rules if you sell multiple SKUs

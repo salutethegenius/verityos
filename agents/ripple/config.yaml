@@ -1,13 +1,165 @@
+adapter_path: /home/ubuntu/verityos/fine_tuning/ripple/adapters
 auto_task: false
+bad_senders:
+- dawniedawn242 on Instagram <no-reply@mail.instagram.com>
+- Typeform <news@typeform.com>
+- Upwork <upwork@email.upwork.com>
+- Vikesh from TexAu <vikesh@texau.ae>
+- Vimeo <vimeo@vimeo.com>
+- '"Academia.edu" <updates@academia-mail.com>'
+- BK Nassau <offers@kemis.net>
+- Anthropic Team <team@email.anthropic.com>
+- '"no-reply@kemis.net" <ads@kemis.net>'
+- '"Wilson'
+- "\"PDF By Fran\xE7ois  Charpillet\" <updates@academia-mail.com>"
+- '"PDF By Amir A L Y **[Few Selected Papers Only]**" <updates@academia-mail.com>'
+- '"Natasha @ Tailscale" <newsletter@tailscale.com>'
+- '"Drewber Solutions Ltd." <offers@kemis.net>'
+- Google Ads <ads-noreply@google.com>
+- Google AI Studio <googleaistudio-noreply@google.com>
+- Google <no-reply@accounts.google.com>
+- Facebook <notification@facebookmail.com>
+- Chris Standring <chris@chrisstandringmusic.com>
+- Captions <hello@m.captions.ai>
+- Kaggle <noreply@kaggle.com>
+- Google Cloud Platform <CloudPlatform-noreply@google.com>
+- Google Calendar <calendar-notification@google.com>
+- LinkedIn <groups-noreply@linkedin.com>
+- LinkedIn <notifications-noreply@linkedin.com>
+- Looker Customer Newsletter <looker-studio-noreply@google.com>
+- Meta for Business <advertise-noreply@global.metamail.com>
+- Meta for Business <update@global.metamail.com>
+- Spotify <no-reply@spotify.com>
+- Stitch Fix <stitchfix@e.stitchfix.com>
+- Stripo Weekly <support@stripo.email>
+- Substack <no-reply@substack.com>
+- TCL Group <no-reply@thecounsellorslimited.ccsend.com>
+- Team D-ID <updates@updates.d-id.com>
+- ads@kemis.net
+known_senders:
+- '"Kenneth Moncur | Digital Hustlers" <kennethmoncur@gmail.com>'
+- Ayenda Kemp <ayenda@eolaord.com>
+- Bank of America <onlinebanking@ealerts.bankofamerica.com>
+- Cortney Mcdonald <cortney@drewbersolutions.com>
+- Jamaalcooper1224@gmail.com
+- Keith Albury <kalbury@drewbersolutions.com>
+- Kelly Fowler <kelly@drewbersolutions.com>
+- Ken@kemisdigital.com
+- Kenneth Moncur | Digital Hustlers" <kennethmoncur@gmail.com>
+- Nathaniel Butler <nat@drewbersolutions.com>
+- Naydalle.m.r@gmail.com
+- Shamubula Pinder <info@drewbersolutions.com>
+- Syltura <Syltura.Wilson@cibcfcib.com>
+- Tiaunderscore28@gmail.com
+- Wilson, Syltura <Syltura.Wilson@cibcfcib.com>'
+- alannahdbandin05@gmail.com
+- ambitious_justin@hotmail.com
+- amiercollie00@gmail.com
+- arieloliver14@icloud.com
+- ashantaeforbes04@gmail.com
+- ashthamillionaire@gmail.com
+- ashtro20@gmail.com
+- autofollow@test.com
+- ayenda@eolaord.com
+- bonnieanncooper@hotmail.com
+- boyo_jackson@hotmail.com
+- brandon_hall14@hotmail.com
+- cadeshah@gmail.com
+- catislandgirls242@gmail.com
+- cheree.andrews242@hotmail.com
+- christinerolle7@gmail.com
+- cleomwood@gmail.com
+- cliffpat67@hotmail.com
+- dkemp87@gmail.com
+- duncansweeting84@gmail.com
+- edgecombe.shana@gmail.com
+- evansricardo484@gmail.com
+- fish11_55@hotmail.com
+- frontdesk@kemisdigital.com
+- gklightbourne@gmail.com
+- godisgood4l@outlook.com
+- herbz178@gmail.com
+- hilvanacash@gmail.com
+- incbigl@gmail.com
+- info@drewbersolutions.com
+- jahiembauld@gmail.com
+- jakeempratt25@gmail.com
+- jamaicanflavor@msn.com
+- jasonmunroe33@gmail.com
+- jeanjsph@gmail.com
+- jgarci9554@gmail.com
+- kaidenhepburn@gmail.com
+- keeganp@yahoo.com
+- keithra.65@gmail.com
+- ken@kemisdigital.com
+- kennethmoncur@gmail.com
+- kennyk769@hotmail.com
+- kerlinepetitfere@gmail.com
+- kevinpersad@rocketmail.com
+- ladyjoy92@gmail.com
+- leisha.e@icloud.com
+- magicdog34@outlook.com
+- manuelboss@email.com
+- mcdonald_cortney@yahoo.com
+- michaelramsey368@gnail.com
+- mickaeel.highley383@stu.edu.tt
+- mosiahmaturine10@gmail.com
+- mossvernalsha@gmail.com
+- msbriaandrews@gmail.com
+- naomi@kemisdigital.com
+- naomidohiling@gmail.com
+- nigeljkhan@hotmail.com
+- noahlightbourne7@gmail.com
+- noreply@tm.openai.com
+- oliver.chantisse@gmail.com
+- owenhenderson2421@gmail.con
+- patrick.t.robinson.2@gmail.com
+- paulbrown6450@gmail.com
+- raiders35@outlook.com
+- rajasbain@yahoo.com
+- randyknowles91@gmail.com
+- richardruss@gmail.com
+- robertdarville2@gmail.com
+- sanchezganpat_21@hotmail.com
+- shannyphilippe@gmail.com
+- sharezboyd1983@gmail.com
+- sherilyncooper@live.com
+- sherwyn21@hotmail.com
+- shottabuss25@gmail.com
+- solja2k7@hotmail.com
+- stefon_92@hotmail.com
+- stephhenhackshaw13@gmail.com
+- tarvantimcdonald@hotmail.com
+- taylortanya551@hotmail.com
+- tehyan3@gmail.com
+- thatguy12111@outlook.com
+- tranoyamark@gmail.com
+- traside39000@gmail.com
+- trinimusicblue@yahoo.com
+- urandacurtis@gmail.com
+- vidIQ <hello@send.vidiq.com>
+- vivek_maharaj@yahoo.com
+- wilton_242@icloud.com
+- xAI <noreply@x.ai>
+- xememi9080@upsdom.com
+- yk.antoyostuart@gmail.com
+known_senders_initialized: true
 log_path: /home/ubuntu/verityos/agents/ripple/logs
 memory_path: /home/ubuntu/verityos/agents/ripple/memory_system
 mode: command
 model: open_llama_3b
 name: ripple
-role: |
-  Ripple is the Email Intelligence Agent of VerityOS.
-  She is responsible for reviewing, summarizing, and drafting email responses based on priority.
-  Ripple supports the Boss by streamlining communication and ensuring no critical messages are missed.
-  She operates quietly in the background and presents summaries at set intervals or on demand.
-adapter_path: /home/ubuntu/verityos/fine_tuning/ripple/adapters
+role: 'Ripple is the Email Intelligence Agent of VerityOS.
+
+  She is responsible for reviewing, summarizing, and drafting email responses based
+  on priority.
+
+  Ripple supports the Boss by streamlining communication and ensuring no critical
+  messages are missed.
+
+  She operates quietly in the background and presents summaries at set intervals or
+  on demand.
+
+  '
+setup_phase: 1
 version: '1.2'

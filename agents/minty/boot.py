@@ -4,10 +4,125 @@ import os
 import time
 import yaml
 from pathlib import Path
+import sys
+import argparse
+import stripe
+import json
+
+# === Connector Stubs ===
+class StripeConnector:
+    def __init__(self, config):
+        self.config = config
+        stripe.api_key = self.config.get("stripe_api_key", "")
+        # Set up cache file path
+        self.cache_file = memory_path / "stripe_transactions_cache.json"
+
+    def fetch_transactions(self):
+        # Load cached transactions if available
+        cached = []
+        if self.cache_file.exists():
+            with open(self.cache_file, "r") as f:
+                cached = json.load(f)
+        last_ts = max((tx.get("created", 0) for tx in cached), default=0)
+
+        new_tx = []
+        try:
+            # Fetch only transactions newer than last cached timestamp
+            charges = stripe.Charge.list(limit=100, created={'gt': last_ts}, expand=["data.balance_transaction"])
+            refunds = stripe.Refund.list(limit=100, created={'gt': last_ts})
+            for charge in charges.auto_paging_iter():
+                new_tx.append({
+                    "id": charge.id,
+                    "type": "charge",
+                    "amount": charge.amount,
+                    "currency": charge.currency,
+                    "created": charge.created,
+                    "status": charge.status,
+                    "description": charge.description or "",
+                })
+            for refund in refunds.auto_paging_iter():
+                new_tx.append({
+                    "id": refund.id,
+                    "type": "refund",
+                    "amount": -refund.amount,
+                    "currency": refund.currency,
+                    "created": refund.created,
+                    "charge_id": refund.charge,
+                })
+        except Exception as e:
+            print(f"⚠️ StripeConnector error: {e}")
+
+        # Combine cached and new, then save back to cache
+        transactions = cached + new_tx
+        with open(self.cache_file, "w") as f:
+            json.dump(transactions, f)
+
+        print(f"✅ StripeConnector: fetched {len(transactions)} transactions ({len(new_tx)} new)")
+        self._transactions = transactions
+        return transactions
+
+    def map_categories(self):
+        category_map = self.config.get("category_map", {})
+        mapped = []
+        for tx in getattr(self, "_transactions", []):
+            cat = category_map.get(tx.get("type"), "Uncategorized")
+            mapped.append({
+                "id": tx.get("id"),
+                "amount": tx.get("amount"),
+                "currency": tx.get("currency"),
+                "created": tx.get("created"),
+                "category": cat
+            })
+        print(f"✅ StripeConnector: mapped {len(mapped)} transactions")
+        return mapped
+
+    def snapshot_data(self):
+        from datetime import datetime, timedelta
+        mapped = self.map_categories()
+        cutoff = datetime.utcnow() - timedelta(days=30)
+        totals = {}
+        for tx in mapped:
+            created = datetime.utcfromtimestamp(tx["created"])
+            if created >= cutoff:
+                totals[tx["category"]] = totals.get(tx["category"], 0) + tx["amount"]
+        snapshot = {
+            "period_start": cutoff.strftime("%Y-%m-%d"),
+            "period_end": datetime.utcnow().strftime("%Y-%m-%d"),
+            "totals": totals
+        }
+        print(f"✅ StripeConnector: snapshot totals: {snapshot['totals']}")
+        return snapshot
+
+class QuickBooksConnector:
+    def __init__(self, config):
+        self.config = config
+    def fetch_transactions(self):
+        # TODO: replace with real QuickBooks OAuth call
+        print("✅ QuickBooksConnector: fetch_transactions called")
+        return []
+    def map_categories(self):
+        # TODO: implement real mapping logic
+        print("✅ Connector: map_categories called")
+        return {}
+    def snapshot_data(self):
+        # TODO: implement real snapshot logic
+        print("✅ Connector: snapshot_data called")
+        return {}
 
 # === Load Config ===
 with open("config.yaml", "r") as f:
     config = yaml.safe_load(f)
+
+# === Parse Integration Choice ===
+parser = argparse.ArgumentParser(description="Boot Minty Agent")
+parser.add_argument(
+    "--integration",
+    choices=["stripe", "quickbooks"],
+    default="stripe",
+    help="Select which financial integration to use"
+)
+args = parser.parse_args()
+integration = args.integration
 
 name = config.get("name", "Agent")
 mode = config.get("mode", "command")
@@ -26,13 +141,49 @@ def log(entry):
     with open(log_path / "latest.log", "a") as f:
         f.write(f"[{timestamp}] {entry}\n")
 
+# === Initialize Connector & Fetch ===
+if integration == "stripe":
+    connector = StripeConnector(config)
+elif integration == "quickbooks":
+    connector = QuickBooksConnector(config)
+else:
+    print(f"⚠️ Unknown integration: {integration}")
+    sys.exit(1)
+
+transactions = connector.fetch_transactions()
+log(f"{integration.capitalize()} transactions fetched: {len(transactions)} items")
+
 def run_command():
+    print("🧠 Available commands: fetch, map, snapshot, report, exit")
     while True:
-        task = input(f"🧠 {name} > ").strip()
-        if task.lower() in ["exit", "quit"]:
+        task = input(f"🧠 {name} > ").strip().lower()
+        if task in ["exit", "quit"]:
             break
+        elif task == "fetch":
+            transactions = connector.fetch_transactions()
+            print(f"✅ Fetched {len(transactions)} transactions.")
+        elif task == "map":
+            categories = connector.map_categories()
+            print("✅ Categories mapped.")
+        elif task == "snapshot":
+            snapshot = connector.snapshot_data()
+            print("✅ Snapshot completed.")
+        elif task == "report":
+            # Generate and print the Monthly P&L summary
+            snapshot = connector.snapshot_data()
+            start = snapshot["period_start"]
+            end = snapshot["period_end"]
+            totals = snapshot["totals"]
+            revenue = totals.get("Revenue", 0) / 100  # convert cents to dollars
+            refunds = totals.get("Refunds", 0) / 100
+            net = revenue + refunds
+            print(f"\n📊 Monthly P&L Summary ({start} to {end})")
+            print(f"• Revenue:      ${revenue:,.2f}")
+            print(f"• Refunds:      ${refunds:,.2f}")
+            print(f"• Net Income:   ${net:,.2f}\n")
+        else:
+            print("⚠️ Unknown command. Available: fetch, map, snapshot, report, exit.")
         log(f"COMMAND: {task}")
-        print(f"✅ Task received: {task}")
 
 def run_chat():
     print("💬 Chat mode is under development.")
